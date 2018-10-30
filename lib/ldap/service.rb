@@ -33,8 +33,14 @@ module NauLdap
       ldap.add(dn: dn, attributes: attributes)
     end
 
-    def set_attributes(attrs)
-      write_dynamic_attributes(attrs).merge(write_static_attributes)
+    def check_login(login)
+      ldap = connect
+      treebase = search_treebase
+      logins = []
+      ldap.search(base: treebase, attributes: login_attribute, return_result: false) do |entry|
+        logins << entry[login_attribute].first
+      end
+      logins.include?(login)
     end
 
     def get_ldap_response(ldap)
@@ -42,11 +48,15 @@ module NauLdap
       raise msg unless ldap.get_operation_result.code == '0'
     end
 
-    def get_login
-      # TODO: Getting login value (existed of not)
+    private
+
+    def search_treebase
+      false
     end
 
-    private
+    def login_attribute
+      false
+    end
 
     def set_dn(attrs)
       false
@@ -64,5 +74,26 @@ module NauLdap
       false
     end
 
+    def set_attributes(attrs)
+      write_dynamic_attributes(attrs).merge(write_static_attributes)
+    end
+
+    def get_uidNumbers
+      ldap = connect
+      treebase = search_treebase
+      uids = [2000]
+      ldap.search(base: treebase, attributes: "uidNumber", return_result: false) do |entry|
+        uids << entry[:uidNumber].first.to_i if entry[:uidNumber].first.to_i >= 2000
+      end
+      uids.sort
+    end
+
+    def set_uidNumber
+      uids = get_uidNumbers
+      (0...uids.length).each do |n|
+        return uids[n] + 1 if n == uids.length - 1
+        return(uids[n] + 1) if uids[n + 1] - uids[n] > 0
+      end
+    end
   end
 end

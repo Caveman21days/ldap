@@ -1,6 +1,10 @@
 module NauLdap
   class ActiveDirectory < Service
 
+    BIND_AD_DN = 'CN=Администратор,CN=Users,DC=Nau,DC=res'.freeze
+
+    SEARCH_TREE_BASE_AD = "OU=People,OU=Naumen,DC=Nau,DC=res".freeze
+
     AD_STATIC_ATTRIBUTES = {
       objectClass: %w[top person organizationalPerson user],
       objectCategory: 'CN=Person,CN=Schema,CN=Configuration,DC=Nau,DC=res',
@@ -9,8 +13,6 @@ module NauLdap
       countryCode: '0',
       codePage: '0'
     }.freeze
-
-    BIND_AD_DN = 'CN=Администратор,CN=Users,DC=Nau,DC=res'.freeze
 
     def write(attrs)
       ldap = connect
@@ -22,19 +24,14 @@ module NauLdap
       ldap.replace_attribute(dn, 'userAccountControl', "512")
     end
 
-    def microsoft_encode_password(pwd)
-      ret = ""
-      pwd = "\"" + pwd + "\""
-      pwd.length.times { |i| ret += "#{pwd[i..i]}\000" }
-      ret
+    private
+
+    def search_treebase
+      SEARCH_TREE_BASE_AD
     end
 
-    def bind_dn
-      BIND_AD_DN
-    end
-
-    def set_dn(attrs)
-      "cn=#{attrs[:sn]} #{attrs[:givenName]} #{attrs[:secondName]},OU=People,OU=Naumen,DC=Nau,DC=res"
+    def login_attribute
+      'sAMAccountName'
     end
 
     def write_dynamic_attributes(attrs)
@@ -56,6 +53,21 @@ module NauLdap
         department:                 attrs[:department],
         description:                "#{attrs[:title]} #{attrs[:department]}"
       }
+    end
+
+    def microsoft_encode_password(pwd)
+      ret = ""
+      pwd = "\"" + pwd + "\""
+      pwd.length.times { |i| ret += "#{pwd[i..i]}\000" }
+      ret
+    end
+
+    def bind_dn
+      BIND_AD_DN
+    end
+
+    def set_dn(attrs)
+      "cn=#{attrs[:sn]} #{attrs[:givenName]} #{attrs[:secondName]},OU=People,OU=Naumen,DC=Nau,DC=res"
     end
 
     def write_static_attributes

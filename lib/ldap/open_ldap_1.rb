@@ -1,6 +1,10 @@
 module NauLdap
   class OpenLdap1 < Service
 
+    BIND_OL1_DN = 'uid=hradmin,ou=users,dc=naumen,dc=ru'.freeze
+
+    SEARCH_TREE_BASE_OL1 = "ou=users,dc=naumen,dc=ru".freeze
+
     OL1_STATIC_ATTRIBUTES = {
       objectClass: %w[inetOrgPerson posixAccount shadowAccount top],
       loginShell: '/usr/bin/passwd',
@@ -13,8 +17,6 @@ module NauLdap
       gidNumber: '57925'
     }.freeze
 
-    BIND_OL1_DN = 'uid=hradmin,ou=users,dc=naumen,dc=ru'.freeze
-
     def write(attrs)
       ldap = connect
       dn = set_dn(uid: attrs[:uid])
@@ -22,8 +24,14 @@ module NauLdap
       ldap.add(dn: dn, attributes: attributes)
     end
 
-    def get_uidNumbers
-      
+    private
+
+    def login_attribute
+      'uid'
+    end
+
+    def search_treebase
+      SEARCH_TREE_BASE_OL1
     end
 
     def bind_dn
@@ -32,6 +40,10 @@ module NauLdap
 
     def set_dn(attrs)
       "uid=#{attrs[:uid]},ou=users,dc=naumen,dc=ru"
+    end
+
+    def write_static_attributes
+      OL1_STATIC_ATTRIBUTES
     end
 
     def write_dynamic_attributes(attrs)
@@ -47,12 +59,8 @@ module NauLdap
         title:                      attrs[:title],
         telephoneNumber:            attrs[:phoneNumber],
         homeDirectory:              "/home/users/#{attrs[:uid]}",
-        uidNumber:                  attrs[:uidNumber] # SDELAT' METOD!!!
+        uidNumber:                  set_uidNumber.to_s
       }
-    end
-
-    def write_static_attributes
-      OL1_STATIC_ATTRIBUTES
     end
   end
 end
