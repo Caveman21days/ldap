@@ -17,11 +17,18 @@ module NauLdap
       shadowExpire: '99999'
     }.freeze
 
-    def write(attrs)
-      ldap = connect
-      dn = set_dn(attrs)
-      attributes = set_attributes(attrs)
-      ldap.add(dn: dn, attributes: attributes)
+    OL2_DYNAMIC_ATTRIBUTE_KEYS = %w[
+      uid displayName givenName sn cn mail telephoneNumber
+      employeeNumber l physicalDeliveryOfficeName naumenName
+      naumenLastName naumenEMail naumenPhone title userPassword
+    ].freeze
+
+    def change_password(employee_number, pwd)
+      update('employeeNumber' => employee_number, 'userPassword' => pwd)
+    end
+
+    def deactivate_account(employee_number)
+      update('employeeNumber' => employee_number, 'userPassword' => Random.seed, 'shadowInactive' => '1')
     end
 
     private
@@ -39,10 +46,10 @@ module NauLdap
     end
 
     def set_dn(attrs)
-      "uid=#{attrs[:uid]},#{map_city(attrs[:l])},ou=People,dc=naumen,dc=ru"
+      "uid=#{attrs['uid']},#{map_city(attrs['l'])},ou=People,dc=naumen,dc=ru"
     end
 
-    def write_static_attributes
+    def static_attributes
       OL2_STATIC_ATTRIBUTES
     end
 
@@ -69,25 +76,34 @@ module NauLdap
       end
     end
 
-    def write_dynamic_attributes(attrs)
+    def dynamic_attributes(attrs)
       {
-        uid:                        attrs[:uid],
-        displayName:                attrs[:uid],
-        givenName:                  attrs[:givenName],
-        sn:                         attrs[:sn],
-        cn:                         "#{attrs[:sn]} #{attrs[:givenName]} #{attrs[:secondName]}",
-        mail:                       "#{attrs[:uid]}@naumen.ru",
-        l:                          attrs[:l],
-        physicalDeliveryOfficeName: attrs[:physicalDeliveryOfficeName],
-        title:                      attrs[:title],
-        telephoneNumber:            attrs[:phoneNumber],
-        homeDirectory:              "/home/#{attrs[:uid]}",
-        naumenName:                 translit_str(attrs[:givenName]),
-        naumenLastName:             translit_str(attrs[:sn]),
-        naumenEMail:                "#{attrs[:uid]}@naumen.ru",
-        naumenPhone:                attrs[:phoneNumber],
-        uidNumber:                  set_uidNumber.to_s
+        uid:                        attrs['uid'],
+        displayName:                attrs['uid'],
+        givenName:                  attrs['givenName'],
+        sn:                         attrs['sn'],
+        cn:                         attrs['cn'],
+        mail:                       "#{attrs['uid']}@naumen.ru",
+        l:                          attrs['l'],
+        physicalDeliveryOfficeName: attrs['physicalDeliveryOfficeName'],
+        title:                      attrs['title'],
+        telephoneNumber:            attrs['telephoneNumber'],
+        homeDirectory:              "/home/#{attrs['uid']}",
+        naumenName:                 translit_str(attrs['givenName']),
+        naumenLastName:             translit_str(attrs['sn']),
+        naumenEMail:                "#{attrs['uid']}@naumen.ru",
+        naumenPhone:                attrs['telephoneNumber'],
+        uidNumber:                  set_uidNumber.to_s,
+        employeeNumber:             attrs['employeeNumber']
       }
+    end
+
+    def hr_id
+      'employeeNumber'
+    end
+
+    def valid_attribute_keys
+      OL2_DYNAMIC_ATTRIBUTE_KEYS
     end
   end
 end
