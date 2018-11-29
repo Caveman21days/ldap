@@ -1,5 +1,5 @@
 module NauLdap
-  class OpenLdap1 < Service
+  class OpenLdap1 < OpenLdap
 
     BIND_OL1_DN = 'uid=hradmin,ou=users,dc=naumen,dc=ru'.freeze
 
@@ -17,19 +17,6 @@ module NauLdap
       gidNumber:      '57925'
     }.freeze
 
-    OL1_DYNAMIC_ATTRIBUTE_KEYS = %w[
-      uid displayName givenName sn cn mail telephoneNumber
-      employeeNumber l physicalDeliveryOfficeName title userPassword
-    ].freeze
-
-    def change_password(employee_number, pwd)
-      update('employeeNumber' => employee_number, 'userPassword' => pwd)
-    end
-
-    def deactivate_account(employee_number)
-      update('employeeNumber' => employee_number, 'userPassword' => Random.seed, 'shadowInactive' => '1')
-    end
-
     private
 
     def login_attribute
@@ -45,7 +32,7 @@ module NauLdap
     end
 
     def set_dn(attrs)
-      "uid=#{attrs['uid']},ou=users,dc=naumen,dc=ru"
+      "uid=#{attrs[:uid]},ou=users,dc=naumen,dc=ru"
     end
 
     def static_attributes
@@ -53,22 +40,7 @@ module NauLdap
     end
 
     def dynamic_attributes(attrs)
-      {
-        uid:                        attrs['uid'],
-        displayName:                attrs['uid'],
-        givenName:                  attrs['givenName'],
-        sn:                         attrs['sn'],
-        cn:                         attrs['cn'],
-        mail:                       "#{attrs['uid']}@naumen.ru",
-        l:                          attrs['l'],
-        physicalDeliveryOfficeName: attrs['physicalDeliveryOfficeName'],
-        title:                      attrs['title'],
-        telephoneNumber:            attrs['telephoneNumber'],
-        homeDirectory:              "/home/users/#{attrs['uid']}",
-        uidNumber:                  set_uidNumber.to_s,
-        employeeNumber:             attrs['employeeNumber'],
-        userPassword:               attrs['userPassword']
-      }
+      transform_arguments(attrs)
     end
 
     def hr_id
@@ -76,7 +48,26 @@ module NauLdap
     end
 
     def valid_attribute_keys
-      OL1_DYNAMIC_ATTRIBUTE_KEYS
+      REQUIRED_ATTRIBUTE_KEYS
+    end
+
+    def transform_arguments(attrs)
+      {
+        uid:                        attrs['uid'],
+        displayName:                attrs['uid'],
+        givenName:                  attrs['firstName'],
+        sn:                         attrs['lastName'],
+        l:                          attrs['city'],
+        physicalDeliveryOfficeName: attrs['physicalDeliveryOfficeName'],
+        title:                      attrs['position'],
+        telephoneNumber:            attrs['telephoneNumber'],
+        employeeNumber:             attrs['hrID'],
+        userPassword:               attrs['password'],
+        mail:                       "#{attrs['uid']}@naumen.ru",
+        homeDirectory:              "/home/users/#{attrs['uid']}",
+        uidNumber:                  set_uidNumber.to_s,
+        cn:                         "#{attrs['lastName']} #{attrs['firstName']} #{attrs['middleName']}"
+      }
     end
   end
 end

@@ -1,5 +1,5 @@
 module NauLdap
-  class ActiveDirectory < Service
+  class ActiveDirectory < Ldap
 
     BIND_AD_DN = 'CN=Администратор,CN=Users,DC=Nau,DC=res'.freeze
 
@@ -14,31 +14,56 @@ module NauLdap
       codePage:       '0'
     }.freeze
 
-    AD_DYNAMIC_ATTRIBUTE_KEYS = %w[
-      sn givenName extensionAttribute13 telephoneNumber ipPhone unicodePwd
-      mobile sAMAccountName l physicalDeliveryOfficeName description userAccountControl
-      title department employeeID displayName cn mail userPrincipalName
-    ].freeze
-
     def write(attrs)
-      if valid? attrs.keys
-        ldap = connect
-        dn = set_dn(sn: attrs['sn'], givenName: attrs['givenName'], extensionAttribute13: attrs['extensionAttribute13'])
-        attributes = set_attributes(attrs)
-        ldap.add(dn: dn, attributes: attributes)
-        pwd = microsoft_encode_password(attrs['unicodePwd'])
-        ldap.add_attribute(dn, 'unicodePwd', pwd)
-        ldap.replace_attribute(dn, 'userAccountControl', '512')
+      valid? attrs
+      ldap = connect
+      dn = set_dn(attrs)
+      attributes = set_attributes(attrs)
+      pwd = microsoft_encode_password(attrs['password'])
+      ldap.add(dn: dn, attributes: attributes)
+      ldap.add_attribute(dn, 'unicodePwd', pwd)
+      ldap.replace_attribute(dn, 'userAccountControl', '512')
+      get_ldap_response(ldap)
+    end
+
+    def update(attrs)
+      valid? attrs
+      args = transform_arguments(attrs)
+      ldap = connect
+      filter = Net::LDAP::Filter.eq('employeeID', args[:employeeID])
+      entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
+      if entry.nil?
+        raise NauLdap::AccountNotFound.new("Запись с id: '#{args[:employeeID]}' не найдена!")
+      else
+        ops = []
+        args.reject { |k| k == :cn }.each { |k, v| ops << [:replace, k, [v]] }
+        ldap.modify(dn: entry['dn'].first, operations: ops)
+        ldap.rename(
+          olddn: entry['dn'].first,
+          newrdn: "CN=#{args[:cn]}",
+          delete_attributes: true,
+          new_superior: "OU=People,OU=Naumen,DC=Nau,DC=res"
+        )
         get_ldap_response(ldap)
       end
     end
 
     def change_password(employee_id, pwd)
-      update('employeeID' => employee_id, 'unicodePwd' => microsoft_encode_password(pwd))
+      ldap = connect
+      filter = Net::LDAP::Filter.eq('employeeID', employee_id)
+      entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
+      raise NauLdap::AccountNotFound, "Запись с id: '#{employee_id}' не найдена!" if entry.nil?
+
+      ldap.replace_attribute(entry['dn'].first, :unicodePwd, microsoft_encode_password(pwd))
     end
 
     def deactivate_account(employee_id)
-      update('employeeID' => employee_id, 'userAccountControl' => '514')
+      ldap = connect
+      filter = Net::LDAP::Filter.eq('employeeID', employee_id)
+      entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
+      raise NauLdap::AccountNotFound, "Запись с id: '#{employee_id}' не найдена!" if entry.nil?
+
+      ldap.replace_attribute(entry['dn'].first, :userAccountControl, '514')
     end
 
     private
@@ -56,31 +81,13 @@ module NauLdap
     end
 
     def dynamic_attributes(attrs)
-      {
-        sn:                         attrs['sn'],
-        givenName:                  attrs['givenName'],
-        extensionAttribute13:       attrs['extensionAttribute13'],
-        telephoneNumber:            attrs['telephoneNumber'],
-        ipPhone:                    attrs['telephoneNumber'],
-        mobile:                     attrs['mobile'],
-        sAMAccountName:             attrs['sAMAccountName'],
-        l:                          attrs['l'],
-        physicalDeliveryOfficeName: attrs['physicalDeliveryOfficeName'],
-        title:                      attrs['title'],
-        department:                 attrs['department'],
-        employeeID:                 attrs['employeeID'],
-        displayName:                "#{attrs['sn']} #{attrs['givenName']} #{attrs['extensionAttribute13']}",
-        cn:                         "#{attrs['sn']} #{attrs['givenName']} #{attrs['extensionAttribute13']}",
-        mail:                       "#{attrs['sAMAccountName']}@naumen.ru",
-        userPrincipalName:          "#{attrs['sAMAccountName']}@Nau.res",
-        description:                "#{attrs['title']} #{attrs['department']}"
-      }
+      transform_arguments(attrs)
     end
 
     def microsoft_encode_password(pwd)
       ret = ""
       pwd = "\"" + pwd + "\""
-      pwd.length.times { |i| ret += "#{pwd[i..i]}\000" }
+      pwd.length.times { |i| ret += "#{pwd[i]}\000" }
       ret
     end
 
@@ -89,15 +96,29 @@ module NauLdap
     end
 
     def set_dn(attrs)
-      "cn=#{attrs[:sn]} #{attrs[:givenName]} #{attrs[:extensionAttribute13]},OU=People,OU=Naumen,DC=Nau,DC=res"
+      "cn=#{attrs['lastName']} #{attrs['firstName']} #{attrs['middleName']},OU=People,OU=Naumen,DC=Nau,DC=res"
     end
 
-    def hr_id
-      'employeeID'
-    end
-
-    def valid_attribute_keys
-      AD_DYNAMIC_ATTRIBUTE_KEYS
+    def transform_arguments(attrs)
+      {
+        sAMAccountName:             attrs['uid'],
+        sn:                         attrs['lastName'],
+        givenName:                  attrs['firstName'],
+        extensionAttribute13:       attrs['middleName'],
+        telephoneNumber:            attrs['telephoneNumber'],
+        ipPhone:                    attrs['telephoneNumber'],
+        mobile:                     attrs['mobile'],
+        l:                          attrs['city'],
+        physicalDeliveryOfficeName: attrs['physicalDeliveryOfficeName'],
+        title:                      attrs['position'],
+        department:                 attrs['department'],
+        employeeID:                 attrs['hrID'],
+        displayName:                "#{attrs['lastName']} #{attrs['firstName']} #{attrs['middleName']}",
+        cn:                         "#{attrs['lastName']} #{attrs['firstName']} #{attrs['middleName']}",
+        mail:                       "#{attrs['uid']}@naumen.ru",
+        userPrincipalName:          "#{attrs['uid']}@Nau.res",
+        description:                "#{attrs['position']} #{attrs['department']}"
+      }
     end
   end
 end
