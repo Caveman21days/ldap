@@ -47,6 +47,7 @@ module NauLdap
       raise NauLdap::AccountNotFound, "Запись с id: '#{employee_number}' не найдена!" if entry.nil?
 
       ldap.replace_attribute(entry['dn'].first, :userPassword, pwd)
+      get_ldap_response(ldap)
     end
 
     def deactivate_account(employee_number)
@@ -57,6 +58,7 @@ module NauLdap
 
       ldap.replace_attribute(entry['dn'].first, :userPassword, Random.new_seed)
       ldap.replace_attribute(entry['dn'].first, :shadowInactive, '1')
+      get_ldap_response(ldap)
     end
   end
 end

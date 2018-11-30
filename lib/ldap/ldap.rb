@@ -43,8 +43,7 @@ module NauLdap
     private
 
     def get_ldap_response(ldap)
-      msg = "Response Code: #{ldap.get_operation_result.code}, Message: #{ldap.get_operation_result.message}"
-      raise msg unless ldap.get_operation_result.code == 0
+      "#{self.class}: Response Code: #{ldap.get_operation_result.code}, Message: #{ldap.get_operation_result.message}"
     end
 
     # Path for searching
