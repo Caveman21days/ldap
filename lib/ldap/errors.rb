@@ -4,4 +4,6 @@ module NauLdap
   class InvalidAttributeError < Error; end
 
   class AccountNotFound < Error; end
+
+  class LdapInteractionError < Error; end
 end

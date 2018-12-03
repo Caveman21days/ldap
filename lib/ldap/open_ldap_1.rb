@@ -47,10 +47,6 @@ module NauLdap
       'employeeNumber'
     end
 
-    def valid_attribute_keys
-      REQUIRED_ATTRIBUTE_KEYS
-    end
-
     def transform_arguments(attrs)
       {
         uid:                        attrs['uid'],

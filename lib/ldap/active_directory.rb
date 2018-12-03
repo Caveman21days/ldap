@@ -23,6 +23,7 @@ module NauLdap
       ldap.add(dn: dn, attributes: attributes)
       ldap.add_attribute(dn, 'unicodePwd', pwd)
       ldap.replace_attribute(dn, 'userAccountControl', '512')
+
       get_ldap_response(ldap)
     end
 
@@ -32,37 +33,42 @@ module NauLdap
       ldap = connect
       filter = Net::LDAP::Filter.eq('employeeID', args[:employeeID])
       entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
-      if entry.nil?
-        raise NauLdap::AccountNotFound.new("Запись с id: '#{args[:employeeID]}' не найдена!")
-      else
-        ops = []
-        args.reject { |k| k == :cn }.each { |k, v| ops << [:replace, k, [v]] }
-        ldap.modify(dn: entry['dn'].first, operations: ops)
-        ldap.rename(
-          olddn: entry['dn'].first,
-          newrdn: "CN=#{args[:cn]}",
-          delete_attributes: true,
-          new_superior: "OU=People,OU=Naumen,DC=Nau,DC=res"
-        )
-        get_ldap_response(ldap)
-      end
-    end
 
-    def change_password(employee_id, pwd)
-      ldap = connect
-      filter = Net::LDAP::Filter.eq('employeeID', employee_id)
-      entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
-      raise NauLdap::AccountNotFound, "Запись с id: '#{employee_id}' не найдена!" if entry.nil?
+      raise NauLdap::AccountNotFound, "Запись с id: '#{args[:employeeID]}' не найдена!" if entry.nil?
 
-      ldap.replace_attribute(entry['dn'].first, :unicodePwd, microsoft_encode_password(pwd))
+      ops = []
+      args.reject { |k| k == :cn }.each { |k, v| ops << [:replace, k, [v]] }
+      ldap.modify(dn: entry['dn'].first, operations: ops)
+      ldap.rename(
+        olddn: entry['dn'].first,
+        newrdn: "CN=#{args[:cn]}",
+        delete_attributes: true,
+        new_superior: "OU=People,OU=Naumen,DC=Nau,DC=res"
+      )
+
       get_ldap_response(ldap)
     end
 
-    def deactivate_account(employee_id)
+    def change_password(attrs)
+      raise NauLdap::InvalidAttributeError, "Invalid arguments: #{attrs}" unless attrs.key?('hrID') && attrs.key?('password')
+
       ldap = connect
-      filter = Net::LDAP::Filter.eq('employeeID', employee_id)
+      filter = Net::LDAP::Filter.eq('employeeID', attrs['hrID'])
       entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
-      raise NauLdap::AccountNotFound, "Запись с id: '#{employee_id}' не найдена!" if entry.nil?
+      raise NauLdap::AccountNotFound, "Запись с id: '#{attrs['hrID']}' не найдена!" if entry.nil?
+
+      ldap.replace_attribute(entry['dn'].first, :unicodePwd, microsoft_encode_password(attrs['password']))
+
+      get_ldap_response(ldap)
+    end
+
+    def deactivate_account(attrs)
+      raise NauLdap::InvalidAttributeError, "Invalid arguments: #{attrs}" unless attrs.key?('hrID')
+
+      ldap = connect
+      filter = Net::LDAP::Filter.eq('employeeID', attrs['hrID'])
+      entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
+      raise NauLdap::AccountNotFound, "Запись с id: '#{attrs['hrID']}' не найдена!" if entry.nil?
 
       ldap.replace_attribute(entry['dn'].first, :userAccountControl, '514')
       get_ldap_response(ldap)

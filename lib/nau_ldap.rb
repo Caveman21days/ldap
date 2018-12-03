@@ -50,7 +50,7 @@ module NauLdap
       connections.each do |conn|
         responses << conn.send(method, *args)
       end
-      responses
+      responses.reduce Hash.new, :merge
     end
   end
 end

@@ -31,19 +31,31 @@ module NauLdap
       ldap.bind ? ldap : get_ldap_response(ldap)
     end
 
-    def check_login(login)
+    def check_login(attrs)
       ldap = connect
       logins = []
       ldap.search(base: search_treebase, attributes: login_attribute, return_result: false) do |entry|
         logins << entry[login_attribute].first
       end
-      logins.include?(login)
+      {
+        status: ldap.get_operation_result.message,
+        data: logins.include?(attrs['uid']) ? 'Логин занят!' : 'Логин свободен!'
+      }
     end
 
     private
 
     def get_ldap_response(ldap)
-      "#{self.class}: Response Code: #{ldap.get_operation_result.code}, Message: #{ldap.get_operation_result.message}"
+      if ldap.get_operation_result.code.zero?
+        {
+          status: ldap.get_operation_result.message,
+          details: {
+            self.class => "Response Code: #{ldap.get_operation_result.code}, Message: #{ldap.get_operation_result.message}"
+          }
+        }
+      else
+        raise NauLdap::LdapInteractionError, "Response Code: #{ldap.get_operation_result.code}, Message: #{ldap.get_operation_result.message}"
+      end
     end
 
     # Path for searching
@@ -120,14 +132,10 @@ module NauLdap
     # @param [Array] attrs
     # @return [Boolean]
     def valid?(attrs)
-      invalid_keys = []
+      @invalid_keys ||= []
       valid_attrs = attrs.reject { |k| attrs[k].nil? || attrs[k] == '' }
-      REQUIRED_ATTRIBUTES.each { |k| invalid_keys << k unless valid_attrs.key?(k) }
-      invalid_keys.empty? ? true : raise(NauLdap::InvalidAttributeError, invalid_keys)
-    end
-
-    def transform_arguments(_attrs)
-      false
+      REQUIRED_ATTRIBUTES.each { |k| @invalid_keys << k unless valid_attrs.key?(k) }
+      @invalid_keys.empty? ? true : raise(NauLdap::InvalidAttributeError, @invalid_keys)
     end
   end
 end
