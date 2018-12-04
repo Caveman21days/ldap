@@ -1,12 +1,33 @@
 module NauLdap
   class Ldap
 
+    # Обязательные атрибуты. Ключи хэша атрибутов в любом методе должны быть из этого списка!
+    # Включают в себя:
+    #
+    #   * hrID - ID пользователя в HR
+    #   * uid - логин в HR
+    #   * lastName - фамилия
+    #   * firstName - имя
+    #   * middleName - отчество
+    #   * city - город
+    #   * telephoneNumber - внутренний номер телефона
+    #   * mobile - мобильный номер телефона сотрудника
+    #   * physicalDeliveryOfficeName - адресс офиса
+    #   * position - должность
+    #   * department - отдел
+    #   * password - пароль (мин. 8 символов, верхний и нижний регистры, цифры)
     REQUIRED_ATTRIBUTES = %w[
       hrID uid lastName firstName middleName city telephoneNumber mobile physicalDeliveryOfficeName position department password
     ].freeze
 
-    attr_reader :host, :password, :port, :encryption, :base, :version
-
+    # @param [Hash] args включает в себя:
+    #
+    #   * host - берется из конфигов
+    #   * password - берется из конфигов
+    #   * port - 389 NoSSL by default / 636 SSL
+    #   * encryption - simple_tls by default
+    #   * base - берется из конфигов
+    #   * version - 3 by default
     def initialize(args)
       @host       = args['host']
       @password   = args['password']
@@ -16,21 +37,27 @@ module NauLdap
       @version    = args['version'] || 3
     end
 
+    # Соединение с LDAP
+    # @return [Net::LDAP] возвращает эксемпляр соединения с LDAP
+    # @raise [Net::LDAP::Error] при неудачной попытке соединения с LDAP
     def connect
       ldap = Net::LDAP.new(
-        host: host,
-        port: port,
-        encryption: encryption,
-        base: base,
+        host: @host,
+        port: @port,
+        encryption: @encryption,
+        base: @base,
         auth: {
           method: :simple,
           username: bind_dn,
-          password: password
+          password: @password
         }
       )
       ldap.bind ? ldap : get_ldap_response(ldap)
     end
 
+    # Проверка наличия логина в LDAP
+    # @param [Hash{String => String}] attrs логин, который нужно проверить
+    # @return [Hash] статус запроса и информация о занятости логина
     def check_login(attrs)
       ldap = connect
       logins = []

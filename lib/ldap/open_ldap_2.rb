@@ -1,10 +1,13 @@
 module NauLdap
   class OpenLdap2 < OpenLdap
 
+    # Путь для подключения к OpenLdap2
     BIND_OL2_DN = 'uid=hradmin,ou=sysusers,ou=People,dc=naumen,dc=ru'.freeze
 
+    # Путь поиска учетных записей в OpenLdap2
     SEARCH_TREE_BASE_OL2 = "ou=People,dc=naumen,dc=ru".freeze
 
+    # Одинаковые атрибуты для создания всех учетных записей в OpenLdap2
     OL2_STATIC_ATTRIBUTES = {
       objectClass: %w[inetOrgPerson posixAccount shadowAccount top naumenAccount],
       gidNumber: '2000',

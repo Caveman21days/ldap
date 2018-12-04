@@ -1,10 +1,15 @@
 module NauLdap
+
+  # Класс для взаимодействия с ActiveDirectory
   class ActiveDirectory < Ldap
 
+    # Путь для подключения к ActiveDirectory
     BIND_AD_DN = 'CN=Администратор,CN=Users,DC=Nau,DC=res'.freeze
 
+    # Путь поиска учетных записей в ActiveDirectory
     SEARCH_TREE_BASE_AD = "OU=People,OU=Naumen,DC=Nau,DC=res".freeze
 
+    # Одинаковые атрибуты для создания всех учетных записей в ActiveDirectory
     AD_STATIC_ATTRIBUTES = {
       objectClass:    %w[top person organizationalPerson user],
       objectCategory: 'CN=Person,CN=Schema,CN=Configuration,DC=Nau,DC=res',
@@ -14,6 +19,17 @@ module NauLdap
       codePage:       '0'
     }.freeze
 
+    # Метод записи в ActiveDirectory.
+    # Важное замечание по созданию записей в ActiveDirectory:
+    #
+    #   * Все данные по учетной записи можно создать сразу
+    #   * Пароль и разрешения добавляются к уже созданной учетной записи
+    #   * Пароль должен быть в кодировке microsoft
+    #
+    # @param [Hash] attrs строгий набор параметров, одинаковый для всех методов записи и обновления
+    # @return [Hash]
+    # @raise [NauLdap::LdapInteractionError]
+    # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
     def write(attrs)
       valid? attrs
       ldap = connect
@@ -27,6 +43,14 @@ module NauLdap
       get_ldap_response(ldap)
     end
 
+    # Метод обновления данных в ActiveDirectory
+    # Важным нюансом является то, что ActiveDirectory не дает менять атрибут CN страндартным `replace`.
+    # Вместо этого нужно использовать `rename`.
+    # @param [Hash] attrs строгий набор параметров, одинаковый для всех методов записи и обновления (see REQUIRED_ATTRIBUTES)
+    # @return [Hash]
+    # @raise [NauLdap::LdapInteractionError] в случае ошибок взаимодейстия с LDAP
+    # @raise [NauLdap::AccountNotFound] в случае, если не найдена учетная запись с данным hrID
+    # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
     def update(attrs)
       valid? attrs
       args = transform_arguments(attrs)
@@ -49,6 +73,16 @@ module NauLdap
       get_ldap_response(ldap)
     end
 
+    # Изменение пароля в ActiveDirectory
+    # @param [Hash{String => String}] attrs необходимы два аргумента:
+    #
+    #   * hrID => Value
+    #   * password => Value
+    #
+    # @return [Hash]
+    # @raise [NauLdap::LdapInteractionError] в случае ошибок взаимодейстия с LDAP
+    # @raise [NauLdap::AccountNotFound] в случае, если не найдена учетная запись с данным hrID
+    # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
     def change_password(attrs)
       raise NauLdap::InvalidAttributeError, "Invalid arguments: #{attrs}" unless attrs.key?('hrID') && attrs.key?('password')
 
@@ -62,6 +96,12 @@ module NauLdap
       get_ldap_response(ldap)
     end
 
+    # Деактивация учетной записи
+    # @param [Hash{String => String}] attrs необходима лишь одна пара "ключ-значение": 'hrID[String]' => Value[String]
+    # @return [Hash]
+    # @raise [NauLdap::LdapInteractionError] в случае ошибок взаимодейстия с LDAP
+    # @raise [NauLdap::AccountNotFound] в случае, если не найдена учетная запись с данным hrID
+    # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
     def deactivate_account(attrs)
       raise NauLdap::InvalidAttributeError, "Invalid arguments: #{attrs}" unless attrs.key?('hrID')
 

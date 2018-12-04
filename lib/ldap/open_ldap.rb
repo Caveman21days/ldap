@@ -1,6 +1,15 @@
 module NauLdap
+
+  # Класс для работы с OpenLdap.
+  # Имеет различия с ActiveDirectory в алгоритмах работы методов записи, обновления и деактивации учетных записей
   class OpenLdap < Ldap
 
+    # Метод записи в OpenLdap
+    # @param [Hash] attrs строгий набор параметров, одинаковый для всех методов записи и обновления
+    # @return [Hash]
+    # @raise [NauLdap::LdapInteractionError] в случае ошибок взаимодействия с LDAP
+    # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
+    # @raise [NauLdap::AccountNotFound] в случае, если не найдена учетная запись с данным hrID
     def write(attrs)
       valid? attrs
       ldap       = connect
@@ -11,7 +20,12 @@ module NauLdap
       get_ldap_response(ldap)
     end
 
-    # @param [Hash] attrs Атрибут(-ы), который(-е) необходимо изменить
+    # Метод обновления данных в OpenLdap
+    # @param [Hash] attrs строгий набор параметров, одинаковый для всех методов записи и обновления
+    # @return [Hash]
+    # @raise [NauLdap::LdapInteractionError] в случае ошибок взаимодейстия с LDAP
+    # @raise [NauLdap::AccountNotFound] в случае, если не найдена учетная запись с данным hrID
+    # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
     def update(attrs)
       valid? attrs
       args = transform_arguments(attrs)
@@ -27,6 +41,16 @@ module NauLdap
       get_ldap_response(ldap)
     end
 
+    # Изменение пароля в OpenLdap
+    # @param [Hash{String => String}] attrs необходимы два аргумента:
+    #
+    #   * hrID[String] => Value[String]
+    #   * password[String] => Value[String]
+    #
+    # @return [Hash]
+    # @raise [NauLdap::LdapInteractionError] в случае ошибок взаимодейстия с LDAP
+    # @raise [NauLdap::AccountNotFound] в случае, если не найдена учетная запись с данным hrID
+    # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
     def change_password(attrs)
       raise NauLdap::InvalidAttributeError, "Invalid arguments: #{attrs}" unless attrs.key?('hrID') && attrs.key?('password')
 
@@ -40,6 +64,12 @@ module NauLdap
       get_ldap_response(ldap)
     end
 
+    # Деактивация учетной записи
+    # @param [Hash{String => String}] attrs необходима лишь одна пара "ключ-значение": 'hrID[String]' => Value[String]
+    # @return [Hash]
+    # @raise [NauLdap::LdapInteractionError] в случае ошибок взаимодейстия с LDAP
+    # @raise [NauLdap::AccountNotFound] в случае, если не найдена учетная запись с данным hrID
+    # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
     def deactivate_account(attrs)
       raise NauLdap::InvalidAttributeError, "Invalid arguments: #{attrs}" unless attrs.key?('hrID')
 

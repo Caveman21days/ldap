@@ -5,13 +5,16 @@ require File.dirname(__FILE__) + '/ldap/open_ldap'
 require File.dirname(__FILE__) + '/ldap/open_ldap_1'
 require File.dirname(__FILE__) + '/ldap/open_ldap_2'
 
-#  В файл /etc/hosts
-#  добавить строку: 10.105.0.121 tempxdc1.nau.res
-#  и в скриптах прописывать подключение уже к tempxdc1.nau.res
+#  Для подключения по 636 порту с использованием ssl для ActiveDirectory необходимо выполнить следущее:
+#
+#    * В файл /etc/hosts добавить строку: 10.105.0.121 tempxdc1.nau.res
+#    * В скриптах прописывать подключение к tempxdc1.nau.res
 
 module NauLdap
+  # Обработчик запросов API
   class RequestHandler
 
+    # @param [Hash] settings хэш данных для подключений, данные берутся из конфигурации окружения
     def initialize(settings)
       @ad_host      = settings[:ad_host]
       @ad_password  = settings[:ad_password]
@@ -21,6 +24,9 @@ module NauLdap
       @ol2_password = settings[:ol2_password]
     end
 
+    # Создает подключения к трем разным LDAP.
+    # Параметры подключения находятся в конфигах Sinatra в файле '../config.ru'
+    # @return [Array] возвращает список подключений
     def connections
       @connections ||= [
         NauLdap::ActiveDirectory.new(
@@ -45,6 +51,10 @@ module NauLdap
       ]
     end
 
+    # Вызывает переданный метод у трех экземпляров подключения
+    # @param [Method] method метод, который требуется выполнить
+    # @param [Hash] args аргументы для метода
+    # @return [Hash] результат работы метода 3 трех разных LDAP
     def method_missing(method, *args)
       responses = []
       connections.each do |conn|
@@ -54,68 +64,3 @@ module NauLdap
     end
   end
 end
-
-  # attrs = {
-  #   'uid'                        => 'kotkidach',
-  #   'lastName'                   => 'Откидач',
-  #   'firstName'                  => 'Кирилл',
-  #   'middleName'                 => 'Витальевич',
-  #   'telephoneNumber'            => '13378',
-  #   'mobile'                     => '+79090047523',
-  #   'city'                       => 'Екатеринбург',
-  #   'physicalDeliveryOfficeName' => 'Татищева 49а',
-  #   'position'                   => 'Инженер',
-  #   'department'                 => '3.2.4 Группа разработки Екатеринбург',
-  #   'password'                   => 'qwerTY123',
-  #   'hrID'                       => '123123'
-  # }
-  ###################################
-  #      РАБОЧАЯ ЗАПИСЬ В АД        #
-  ###################################
-  # ldap = NauLdap::ActiveDirectory.new(
-  #   'host'       => 'tempxdc1.nau.res',
-  #   'port'       => 636,
-  #   'password'   => 'Zaqwsx147852',
-  #   'encryption' => :simple_tls,
-  #   'version'    => 3
-  # )
-
-  # p ldap.write(attrs)
-  # p ldap.update(attrs)
-  # p ldap.check_login('kotkidach')
-  # p ldap.change_password('123123', 'qwerT1234qq')
-  # p ldap.deactivate_account('123123')
-
-  ###################################
-  #      РАБОЧАЯ ЗАПИСЬ В OL2       #
-  ###################################
-  # ldap = NauLdap::OpenLdap2.new(
-  #   'host'       => 'ldapadmin-test.naumen.ru',
-  #   'port'       => 389,
-  #   'password'   => 'YRp4NS6YfYAWNrlzKV',
-  #   'encryption' => ''
-  # )
-
-  # p ldap.write(attrs)
-  # p ldap.update(attrs)
-  # p ldap.check_login('kotkidach')
-  # p ldap.change_password('123123', '12312aaaaa12335566')
-  # p ldap.deactivate_account('123123')
-
-  ###################################
-  #      РАБОЧАЯ ЗАПИСЬ В OL1       #
-  ###################################
-  # ldap = NauLdap::OpenLdap1.new(
-  #   'host'       => 'ldap-test.naumen.ru',
-  #   'port'       => 389,
-  #   'password'   => 'YRp4NS6YfYAWNrlzKV',
-  #   'encryption' => ''
-  # )
-
-  # ldap.write(attrs)
-  # p ldap.update(attrs)
-  # p ldap.check_login('kotkidach')
-  # p ldap.change_password('123123', '12312aaaaa12335566')
-  # p ldap.deactivate_account('123123')
-
-  ###################################

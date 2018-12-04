@@ -1,10 +1,13 @@
 module NauLdap
   class OpenLdap1 < OpenLdap
 
+    # Путь для подключения к OpenLdap1
     BIND_OL1_DN = 'uid=hradmin,ou=users,dc=naumen,dc=ru'.freeze
 
+    # Путь поиска учетных записей в OpenLdap1
     SEARCH_TREE_BASE_OL1 = "ou=users,dc=naumen,dc=ru".freeze
 
+    # Одинаковые атрибуты для создания всех учетных записей в OpenLdap1
     OL1_STATIC_ATTRIBUTES = {
       objectClass:    %w[inetOrgPerson posixAccount shadowAccount top],
       loginShell:     '/usr/bin/passwd',
