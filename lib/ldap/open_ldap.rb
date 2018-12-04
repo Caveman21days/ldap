@@ -59,7 +59,7 @@ module NauLdap
       entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
       raise NauLdap::AccountNotFound, "Запись с id: '#{attrs['hrID']}' не найдена!" if entry.nil?
 
-      ldap.replace_attribute(entry['dn'].first, :userPassword, attrs['password'])
+      ldap.replace_attribute(entry['dn'].first, :userPassword, md5_password(attrs['password']))
 
       get_ldap_response(ldap)
     end
@@ -78,7 +78,7 @@ module NauLdap
       entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
       raise NauLdap::AccountNotFound, "Запись с id: '#{attrs['hrID']}' не найдена!" if entry.nil?
 
-      ldap.replace_attribute(entry['dn'].first, :userPassword, Random.new_seed)
+      ldap.replace_attribute(entry['dn'].first, :userPassword, md5_password(Random.new_seed))
       ldap.replace_attribute(entry['dn'].first, :shadowInactive, '1')
 
       get_ldap_response(ldap)
@@ -88,6 +88,10 @@ module NauLdap
 
     def transform_arguments(_attrs)
       false
+    end
+
+    def md5_password(pwd)
+      Net::LDAP::Password.generate(:md5, pwd)
     end
   end
 end

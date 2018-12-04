@@ -61,7 +61,7 @@ module NauLdap
         title:                      attrs['position'],
         telephoneNumber:            attrs['telephoneNumber'],
         employeeNumber:             attrs['hrID'],
-        userPassword:               Net::LDAP::Password.generate(:md5, attrs['password']),
+        userPassword:               md5_password(attrs['password']),
         mail:                       "#{attrs['uid']}@naumen.ru",
         homeDirectory:              "/home/users/#{attrs['uid']}",
         uidNumber:                  set_uidNumber.to_s,
