@@ -9,7 +9,15 @@ require File.dirname(__FILE__) + '/ldap/open_ldap_2'
 #
 #   * В файл /etc/hosts добавить строку: 10.105.0.121 tempxdc1.nau.res
 #   * В скриптах прописывать подключение к tempxdc1.nau.res
-
+#
+# Чтобы подключиться к ldaps://xdc1-test.naumen.ru/ нужно на компьютере скачать сертификаты:
+#
+#   * `wget https://download.naumen.ru/upload/IT/Naumen_Exchange_Root_CA.crt -O /usr/share/ca-certificates/Naumen_Exchange_Root_CA.crt`
+#   * `wget https://download.naumen.ru/upload/IT/nau.res_RootCA.crt -O /usr/share/ca-certificates/nau.res_RootCA.crt`
+#   * Установить их: `dpkg-reconfigure ca-certificates`
+#     (ask -> отметить звездочками новые сертификаты)
+#   * Если не поможет, то добавить опцию TLS_REQCERT в конфиг, так чтобы возвращалось:
+#     `grep -i TLS_REQCERT /etc/ldap/ldap.conf` - `TLS_REQCERT never` и перезагрузить
 module NauLdap
   # Обработчик запросов API
   class RequestHandler
@@ -38,15 +46,17 @@ module NauLdap
         ),
         NauLdap::OpenLdap1.new(
           'host'       => @ol1_host,
-          'port'       => 389,
+          'port'       => 636,
           'password'   => @ol1_password,
-          'encryption' => ''
+          'encryption' => :simple_tls,
+          'version'    => 3
         ),
         NauLdap::OpenLdap2.new(
           'host'       => @ol2_host,
-          'port'       => 389,
+          'port'       => 636,
           'password'   => @ol2_password,
-          'encryption' => ''
+          'encryption' => :simple_tls,
+          'version'    => 3
         )
       ]
     end

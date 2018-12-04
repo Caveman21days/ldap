@@ -111,6 +111,7 @@ module NauLdap
       raise NauLdap::AccountNotFound, "Запись с id: '#{attrs['hrID']}' не найдена!" if entry.nil?
 
       ldap.replace_attribute(entry['dn'].first, :userAccountControl, '514')
+      ldap.replace_attribute(entry['dn'].first, :shadowInactive, '1')
       get_ldap_response(ldap)
     end
 
