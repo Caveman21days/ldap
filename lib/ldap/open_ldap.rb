@@ -91,7 +91,7 @@ module NauLdap
     end
 
     def md5_password(pwd)
-      Net::LDAP::Password.generate(:md5, pwd)
+      Net::LDAP::Password.generate(:md5, pwd.to_s)
     end
   end
 end
