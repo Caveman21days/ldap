@@ -10,6 +10,7 @@ GEM
     rack (2.0.6)
     rack-protection (2.0.4)
       rack
+    redcarpet (3.4.0)
     rspec (3.8.0)
       rspec-core (~> 3.8.0)
       rspec-expectations (~> 3.8.0)
@@ -31,15 +32,20 @@ GEM
       rack-protection (= 2.0.4)
       tilt (~> 2.0)
     tilt (2.0.9)
+    yard (0.8.7.6)
+    yard-redcarpet-ext (0.0.3)
+      yard (~> 0.8.0)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   net-ldap
+  redcarpet
   rspec
   russian
   sinatra
+  yard-redcarpet-ext
 
 BUNDLED WITH
    1.16.6

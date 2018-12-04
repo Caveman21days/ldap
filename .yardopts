@@ -1,0 +1,3 @@
+--markup markdown
+--plugin redcarpet-ext
+--tag validation:"Validation Rules"

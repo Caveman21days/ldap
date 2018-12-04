@@ -5,10 +5,10 @@ require File.dirname(__FILE__) + '/ldap/open_ldap'
 require File.dirname(__FILE__) + '/ldap/open_ldap_1'
 require File.dirname(__FILE__) + '/ldap/open_ldap_2'
 
-#  Для подключения по 636 порту с использованием ssl для ActiveDirectory необходимо выполнить следущее:
+# Для подключения по 636 порту с использованием ssl для ActiveDirectory необходимо выполнить следущее:
 #
-#    * В файл /etc/hosts добавить строку: 10.105.0.121 tempxdc1.nau.res
-#    * В скриптах прописывать подключение к tempxdc1.nau.res
+#   * В файл /etc/hosts добавить строку: 10.105.0.121 tempxdc1.nau.res
+#   * В скриптах прописывать подключение к tempxdc1.nau.res
 
 module NauLdap
   # Обработчик запросов API
