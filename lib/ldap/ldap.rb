@@ -61,7 +61,7 @@ module NauLdap
     def check_login(attrs)
       ldap = connect
       logins = []
-      ldap.search(base: search_treebase, attributes: login_attribute, return_result: false) do |entry|
+      ldap.search(base: base, attributes: login_attribute, return_result: false) do |entry|
         logins << entry[login_attribute].first
       end
       {
@@ -81,17 +81,22 @@ module NauLdap
           }
         }
       else
-        raise NauLdap::LdapInteractionError, "Response Code: #{ldap.get_operation_result.code}, Message: #{ldap.get_operation_result.message}"
+        raise NauLdap::LdapInteractionError, "LdapClass: #{self.class.name}, Code: #{ldap.get_operation_result.code}, Message: #{ldap.get_operation_result.message}"
       end
     end
 
     # Path for searching
     # @return [String]
-    def search_treebase
+    def base
       false
     end
 
     # uid= / ou=
+    # @return [String]
+    def login_rdn
+      false
+    end
+
     # @return [String]
     def login_attribute
       false
@@ -130,27 +135,6 @@ module NauLdap
       dynamic_attributes(attrs).merge(static_attributes)
     end
 
-    #  Find all uid numbers which bt 2000
-    # @return [Array]
-    def get_uidNumbers
-      ldap = connect
-      treebase = search_treebase
-      uids = [2000]
-      ldap.search(base: treebase, attributes: 'uidNumber', return_result: false) do |entry|
-        uids << entry[:uidNumber].first.to_i if entry[:uidNumber].first.to_i > 2000
-      end
-      uids.sort
-    end
-
-    # Set uid for account (automatically found)
-    def set_uidNumber
-      uids = get_uidNumbers
-      (0...uids.length).each do |n|
-        return uids[n] + 1 if n == uids.length - 1
-        return(uids[n] + 1) if uids[n + 1] - uids[n] > 0
-      end
-    end
-
     def hr_id
       false
     end
@@ -161,7 +145,8 @@ module NauLdap
     def valid?(attrs)
       @invalid_keys ||= []
       valid_attrs = attrs.reject { |k| attrs[k].nil? || attrs[k] == '' }
-      REQUIRED_ATTRIBUTES.each { |k| @invalid_keys << k unless valid_attrs.key?(k) }
+      req_attrs = block_given? ? yield : REQUIRED_ATTRIBUTES
+      req_attrs.each { |k| @invalid_keys << k unless valid_attrs.key?(k) }
       @invalid_keys.empty? ? true : raise(NauLdap::InvalidAttributeError, @invalid_keys)
     end
   end

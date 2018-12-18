@@ -3,16 +3,9 @@ module NauLdap
   # Класс для взаимодействия с ActiveDirectory
   class ActiveDirectory < Ldap
 
-    # Путь для подключения к ActiveDirectory
-    BIND_AD_DN = 'CN=Администратор,CN=Users,DC=Nau,DC=res'.freeze
-
-    # Путь поиска учетных записей в ActiveDirectory
-    SEARCH_TREE_BASE_AD = "OU=People,OU=Naumen,DC=Nau,DC=res".freeze
-
     # Одинаковые атрибуты для создания всех учетных записей в ActiveDirectory
     AD_STATIC_ATTRIBUTES = {
       objectClass:    %w[top person organizationalPerson user],
-      objectCategory: 'CN=Person,CN=Schema,CN=Configuration,DC=Nau,DC=res',
       accountExpires: '9223372036854775807',
       shadowInactive: '0',
       countryCode:    '0',
@@ -32,10 +25,10 @@ module NauLdap
     # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
     def write(attrs)
       valid? attrs
-      ldap = connect
-      dn = set_dn(attrs)
+      ldap       = connect
+      dn         = set_dn(attrs)
       attributes = set_attributes(attrs)
-      pwd = microsoft_encode_password(attrs['password'])
+      pwd        = microsoft_encode_password(attrs['password'])
       ldap.add(dn: dn, attributes: attributes)
       ldap.add_attribute(dn, 'unicodePwd', pwd)
       ldap.replace_attribute(dn, 'userAccountControl', '512')
@@ -43,22 +36,21 @@ module NauLdap
       get_ldap_response(ldap)
     end
 
-    # Метод обновления данных в ActiveDirectory
-    # Важным нюансом является то, что ActiveDirectory не дает менять атрибут CN страндартным `replace`.
-    # Вместо этого нужно использовать `rename`.
+    # Метод обновления данных.
     # @param [Hash] attrs строгий набор параметров, одинаковый для всех методов записи и обновления (see REQUIRED_ATTRIBUTES)
     # @return [Hash]
     # @raise [NauLdap::LdapInteractionError] в случае ошибок взаимодейстия с LDAP
     # @raise [NauLdap::AccountNotFound] в случае, если не найдена учетная запись с данным hrID
     # @raise [NauLdap::InvalidAttributeError] в случае невалидности переданных атрибутов
     def update(attrs)
-      valid? attrs
+      valid?(attrs) { REQUIRED_ATTRIBUTES.reject { |a| a == 'password' } }
+
       args = transform_arguments(attrs)
       ldap = connect
-      filter = Net::LDAP::Filter.eq('employeeID', args[:employeeID])
-      entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
+      filter = Net::LDAP::Filter.eq(hr_id, attrs['hrID'])
+      entry = ldap.search(base: base, filter: filter, return_result: true).first
 
-      raise NauLdap::AccountNotFound, "Запись с id: '#{args[:employeeID]}' не найдена!" if entry.nil?
+      raise NauLdap::AccountNotFound, "Запись с id: '#{attrs['hrID']}' не найдена!" if entry.nil?
 
       ops = []
       args.reject { |k| k == :cn }.each { |k, v| ops << [:replace, k, [v]] }
@@ -67,7 +59,7 @@ module NauLdap
         olddn: entry['dn'].first,
         newrdn: "CN=#{args[:cn]}",
         delete_attributes: true,
-        new_superior: "OU=People,OU=Naumen,DC=Nau,DC=res"
+        new_superior: base
       )
 
       get_ldap_response(ldap)
@@ -86,9 +78,10 @@ module NauLdap
     def change_password(attrs)
       raise NauLdap::InvalidAttributeError, "Invalid arguments: #{attrs}" unless attrs.key?('hrID') && attrs.key?('password')
 
-      ldap = connect
-      filter = Net::LDAP::Filter.eq('employeeID', attrs['hrID'])
-      entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
+      ldap   = connect
+      filter = Net::LDAP::Filter.eq(hr_id, attrs['hrID'])
+      entry  = ldap.search(base: base, filter: filter, return_result: true).first
+
       raise NauLdap::AccountNotFound, "Запись с id: '#{attrs['hrID']}' не найдена!" if entry.nil?
 
       ldap.replace_attribute(entry['dn'].first, :unicodePwd, microsoft_encode_password(attrs['password']))
@@ -106,8 +99,9 @@ module NauLdap
       raise NauLdap::InvalidAttributeError, "Invalid arguments: #{attrs}" unless attrs.key?('hrID')
 
       ldap = connect
-      filter = Net::LDAP::Filter.eq('employeeID', attrs['hrID'])
-      entry = ldap.search(base: search_treebase, filter: filter, return_result: true).first
+      filter = Net::LDAP::Filter.eq(hr_id, attrs['hrID'])
+      entry = ldap.search(base: base, filter: filter, return_result: true).first
+
       raise NauLdap::AccountNotFound, "Запись с id: '#{attrs['hrID']}' не найдена!" if entry.nil?
 
       ldap.replace_attribute(entry['dn'].first, :userAccountControl, '514')
@@ -117,8 +111,12 @@ module NauLdap
 
     private
 
-    def search_treebase
-      SEARCH_TREE_BASE_AD
+    def hr_id
+      'employeeID'
+    end
+
+    def base
+      App.settings.ad_base
     end
 
     def login_attribute
@@ -126,7 +124,7 @@ module NauLdap
     end
 
     def static_attributes
-      AD_STATIC_ATTRIBUTES
+      AD_STATIC_ATTRIBUTES.merge(objectCategory: "CN=Person,CN=Schema,CN=Configuration,DC=#{App.settings.dc_1},DC=#{App.settings.dc_2}")
     end
 
     def dynamic_attributes(attrs)
@@ -141,11 +139,11 @@ module NauLdap
     end
 
     def bind_dn
-      BIND_AD_DN
+      App.settings.ad_bind_dn
     end
 
     def set_dn(attrs)
-      "cn=#{attrs['lastName']} #{attrs['firstName']} #{attrs['middleName']},OU=People,OU=Naumen,DC=Nau,DC=res"
+      "cn=#{attrs['lastName']} #{attrs['firstName']} #{attrs['middleName']},#{base}"
     end
 
     def transform_arguments(attrs)
@@ -165,7 +163,7 @@ module NauLdap
         displayName:                "#{attrs['lastName']} #{attrs['firstName']} #{attrs['middleName']}",
         cn:                         "#{attrs['lastName']} #{attrs['firstName']} #{attrs['middleName']}",
         mail:                       "#{attrs['uid']}@naumen.ru",
-        userPrincipalName:          "#{attrs['uid']}@Nau.res",
+        userPrincipalName:          "#{attrs['uid']}@#{App.settings.dc_1}.#{App.settings.dc_2}",
         description:                "#{attrs['position']} #{attrs['department']}"
       }
     end

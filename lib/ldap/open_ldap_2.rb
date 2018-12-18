@@ -1,12 +1,6 @@
 module NauLdap
   class OpenLdap2 < OpenLdap
 
-    # Путь для подключения к OpenLdap2
-    BIND_OL2_DN = 'uid=hradmin,ou=sysusers,ou=People,dc=naumen,dc=ru'.freeze
-
-    # Путь поиска учетных записей в OpenLdap2
-    SEARCH_TREE_BASE_OL2 = "ou=People,dc=naumen,dc=ru".freeze
-
     # Одинаковые атрибуты для создания всех учетных записей в OpenLdap2
     OL2_STATIC_ATTRIBUTES = {
       objectClass: %w[inetOrgPerson posixAccount shadowAccount top naumenAccount],
@@ -22,20 +16,16 @@ module NauLdap
 
     private
 
-    def login_attribute
-      'uid'
-    end
-
-    def search_treebase
-      SEARCH_TREE_BASE_OL2
+    def base
+      App.settings.ol2_base
     end
 
     def bind_dn
-      BIND_OL2_DN
+      App.settings.ol2_bind_dn
     end
 
     def set_dn(attrs)
-      "uid=#{attrs[:uid]},#{set_city(attrs[:l])},ou=People,dc=naumen,dc=ru"
+      "uid=#{attrs[:uid]},#{set_city(attrs[:l])},#{base}"
     end
 
     def translit_str(str)
@@ -67,10 +57,6 @@ module NauLdap
 
     def dynamic_attributes(attrs)
       transform_arguments(attrs)
-    end
-
-    def hr_id
-      'employeeNumber'
     end
 
     def transform_arguments(attrs)

@@ -36,34 +36,23 @@ class App < Sinatra::Base
 
   helpers do
     def write(attrs)
-      NauLdap::RequestHandler.new(connection_settings).write(attrs)
+      NauLdap::RequestHandler.new.write(attrs)
     end
 
     def update(attrs)
-      NauLdap::RequestHandler.new(connection_settings).update(attrs)
+      NauLdap::RequestHandler.new.update(attrs)
     end
 
     def change_password(attrs)
-      NauLdap::RequestHandler.new(connection_settings).change_password(attrs)
+      NauLdap::RequestHandler.new.change_password(attrs)
     end
 
     def deactivate_account(attrs)
-      NauLdap::RequestHandler.new(connection_settings).deactivate_account(attrs)
+      NauLdap::RequestHandler.new.deactivate_account(attrs)
     end
 
     def check_login(attrs)
-      NauLdap::RequestHandler.new(connection_settings).check_login(attrs)
-    end
-
-    def connection_settings
-      {
-        ad_host:       settings.ad_host,
-        ad_password:   settings.ad_password,
-        ol1_host:      settings.ol1_host,
-        ol1_password:  settings.ol1_password,
-        ol2_host:      settings.ol2_host,
-        ol2_password:  settings.ol2_password
-      }
+      NauLdap::RequestHandler.new.check_login(attrs)
     end
 
     def response_handler
